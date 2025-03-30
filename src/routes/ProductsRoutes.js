@@ -3,7 +3,8 @@ import {
   obtenerProductos, 
   obtenerProductoPorId,
   obtenerProductosPorCategoria, 
-  crearProducto, 
+  crearProducto,
+  crearProductos, 
   actualizarProducto, 
   eliminarProducto 
 } from '../controllers/Controller.Products.js';
@@ -15,6 +16,7 @@ router.get('/', obtenerProductos);         // Obtener todos los productos
 router.get('/:id', obtenerProductoPorId);  // Obtener un producto por ID
 router.get('/categoria/:categoria', obtenerProductosPorCategoria); // Listar por categoría
 router.post('/', crearProducto);           // Crear un nuevo producto
+router.post('/crear-multiples', crearProductos);
 router.put('/:id', actualizarProducto);    // Actualizar un producto por ID
 router.delete('/:id', eliminarProducto);   // Eliminar un producto por ID
 
