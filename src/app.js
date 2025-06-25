@@ -6,7 +6,6 @@ import { rutas } from './routes/index.js';
 
 // Cargar variables de entorno
 dotenv.config();
-
 // Definir el puerto desde .env o usar 4000 por defecto
 const PORT = process.env.PORT || 4000;
 
