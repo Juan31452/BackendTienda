@@ -114,16 +114,6 @@ export const crearProductos = async (req, res) => {
       return errorResponse(res, 'El array de productos está vacío', 400);
     }
 
-    const productosInvalidos = productos.filter(
-      p => !p.IdProducto || !p.Descripcion || !p.Precio
-    );
-    if (productosInvalidos.length > 0) {
-      return errorResponse(
-        res, 
-        `Los productos en posición [${productosInvalidos.map(p => productos.indexOf(p))}] no tienen todos los campos requeridos (IdProducto, Descripcion, Precio)`,
-        400
-      );
-    }
 
     const ids = productos.map(p => p.IdProducto);
     const idsUnicos = [...new Set(ids)];

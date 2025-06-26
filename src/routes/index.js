@@ -16,5 +16,6 @@ export const rutas = [
     metodo: 'use',
     ruta: '/api/productos',
     controlador: productosRoutes  // <- Aquí se monta el router de productos
+
   }
 ];
