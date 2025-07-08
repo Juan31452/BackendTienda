@@ -25,7 +25,7 @@ const errorResponse = (res, error, status = 500, details = null) => {
 // Obtener todos los productos con paginación
 export const obtenerProductos = async (req, res) => {
   try {
-    const { page = 1, limit = 10, categoria, estado, minPrecio, maxPrecio } = req.query;
+    const { page = 1, limit = 20, categoria, estado, minPrecio, maxPrecio } = req.query;
     const query = {};
     
     // Construir query dinámico
