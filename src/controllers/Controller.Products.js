@@ -28,6 +28,10 @@ export const obtenerProductos = async (req, res) => {
     const { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio } = req.query;
     const query = {};
     
+    // 🎯 Filtro insensible a mayúsculas
+    if (categoria) query.Categoria = new RegExp(`^${categoria}$`, 'i');
+    if (estado) query.Estado = new RegExp(`^${estado}$`, 'i');
+
     // Construir query dinámico
     if (categoria) query.Categoria = categoria;
     if (estado) query.Estado = estado;
