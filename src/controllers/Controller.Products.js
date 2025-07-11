@@ -41,10 +41,17 @@ export const obtenerProductos = async (req, res) => {
       if (maxPrecio) query.Precio.$lte = Number(maxPrecio);
     }
 
-    const productos = await Producto.find(query)
-      .limit(Number(limit))
-      .skip((Number(page) - 1) * Number(limit))
-      .sort({ IdProducto: 1 });
+     const productos = await Producto.aggregate([
+      { $match: query },
+      {
+        $addFields: {
+          IdProductoFloat: { $toDouble: "$IdProducto" }
+        }
+      },
+      { $sort: { IdProductoFloat: 1 } },
+      { $skip: (Number(page) - 1) * Number(limit) },
+      { $limit: Number(limit) }
+    ]);
 
     const count = await Producto.countDocuments(query);
 
