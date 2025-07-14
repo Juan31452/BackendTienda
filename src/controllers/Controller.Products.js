@@ -25,7 +25,14 @@ const errorResponse = (res, error, status = 500, details = null) => {
 // Obtener todos los productos con paginación
 export const obtenerProductos = async (req, res) => {
   try {
-    const { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio } = req.query;
+    let { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio } = req.query;
+
+    // 🛡 Validaciones seguras de números
+    const pageNum  = Number(page);
+    const limitNum = Number(limit);
+
+    const safePage  = Number.isInteger(pageNum) && pageNum > 0 ? pageNum : 1;
+    const safeLimit = Number.isInteger(limitNum) && limitNum > 0 ? limitNum : 100;
 
     const query = {};
 
@@ -54,8 +61,8 @@ export const obtenerProductos = async (req, res) => {
         }
       },
       { $sort: { IdProductoFloat: 1 } },
-      { $skip: (Number(page) - 1) * Number(limit) },
-      { $limit: Number(limit) }
+      { $skip: (safePage - 1) * safeLimit },
+      { $limit: safeLimit }
     ]);
 
     const count = await Producto.countDocuments(query);
@@ -65,9 +72,9 @@ export const obtenerProductos = async (req, res) => {
       productos,
       pagination: {
         totalItems: count,
-        totalPages: Math.ceil(count / limit),
-        currentPage: Number(page),
-        itemsPerPage: Number(limit)
+        totalPages: Math.ceil(count / safeLimit),
+        currentPage: safePage,
+        itemsPerPage: safeLimit
       }
     });
 
