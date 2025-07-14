@@ -26,22 +26,27 @@ const errorResponse = (res, error, status = 500, details = null) => {
 export const obtenerProductos = async (req, res) => {
   try {
     const { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio } = req.query;
-    const query = {};
-    
-    // 🎯 Filtro insensible a mayúsculas
-    if (categoria) query.Categoria = new RegExp(`^${categoria}$`, 'i');
-    if (estado) query.Estado = new RegExp(`^${estado}$`, 'i');
 
-    // Construir query dinámico
-    if (categoria) query.Categoria = categoria;
-    if (estado) query.Estado = estado;
+    const query = {};
+
+    // ✅ Filtros seguros
+    if (categoria && categoria !== 'undefined') {
+      query.Categoria = categoria;
+    }
+
+    if (estado && estado !== 'undefined') {
+      query.Estado = estado;
+    }
+
+    // ✅ Filtro por rango de precio
     if (minPrecio || maxPrecio) {
       query.Precio = {};
       if (minPrecio) query.Precio.$gte = Number(minPrecio);
       if (maxPrecio) query.Precio.$lte = Number(maxPrecio);
     }
 
-     const productos = await Producto.aggregate([
+    // ✅ Consulta paginada y ordenada por IdProducto (convertido a float)
+    const productos = await Producto.aggregate([
       { $match: query },
       {
         $addFields: {
@@ -55,7 +60,6 @@ export const obtenerProductos = async (req, res) => {
 
     const count = await Producto.countDocuments(query);
 
-    // Respuesta directa con Express
     res.status(200).json({
       success: true,
       productos,
@@ -76,6 +80,7 @@ export const obtenerProductos = async (req, res) => {
     });
   }
 };
+
 
 // Obtener un producto por ID
 export const obtenerProductoPorId = async (req, res) => {
