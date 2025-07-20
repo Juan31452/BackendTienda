@@ -219,3 +219,62 @@ export const eliminarProducto = async (req, res) => {
     errorResponse(res, 'Error al eliminar el producto', 500, error.message);
   }
 };
+
+// Obtener estadísticas de productos por categoría y estado
+export const obtenerEstadisticasProductos = async (req, res) => {
+  try {
+    const stats = await Producto.aggregate([
+      {
+        $group: {
+          _id: {
+            Categoria: "$Categoria",
+            Estado: "$Estado"
+          },
+          total: { $sum: 1 }
+        }
+      },
+      {
+        $group: {
+          _id: "$_id.Categoria",
+          conteos: {
+            $push: {
+              estado: "$_id.Estado",
+              total: "$total"
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          Categoria: "$_id",
+          estados: {
+            $arrayToObject: {
+              $map: {
+                input: "$conteos",
+                as: "item",
+                in: [
+                  "$$item.estado",
+                  "$$item.total"
+                ]
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      estadisticas: stats
+    });
+  } catch (error) {
+    console.error('Error al obtener estadísticas:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener las estadísticas',
+      error: error.message
+    });
+  }
+};
+
