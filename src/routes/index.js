@@ -1,5 +1,6 @@
 import { home, about } from '../controllers/homeController.js';
 import productosRoutes from './ProductsRoutes.js';
+import UserRoutes from './UserRoutes.js';
 
 export const rutas = [
   {
@@ -17,5 +18,11 @@ export const rutas = [
     ruta: '/api/productos',
     controlador: productosRoutes  // <- Aquí se monta el router de productos
 
+  },
+  {    
+    metodo: 'use',
+    ruta: '/api/users',
+    controlador: UserRoutes  // <- Aquí se monta el router de usuarios
   }
+
 ];
