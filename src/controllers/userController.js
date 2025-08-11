@@ -1,5 +1,6 @@
 import User from '../models/Model.User.js';
 import bcrypt from 'bcryptjs';
+import { MyToken } from '../lib/jwt.js';
 
 // Crear un nuevo usuario
 export const createUser = async (req, res) => {
@@ -37,5 +38,39 @@ export const getUsers = async (req, res) => {
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: "Error fetching users", error: error.message });
+  }
+};
+
+export const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validar campos
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    // Buscar usuario
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    // Comparar contraseña
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(400).json({ message: "Invalid email or password" });
+    }
+
+    // Crear token con tu función
+    const token = await MyToken({ id: user._id, email: user.email });
+
+    res.json({
+      message: "Login successful",
+      token
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Error logging in", error: error.message });
   }
 };
