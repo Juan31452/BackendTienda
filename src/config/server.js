@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 
 export default class Servidor {
   constructor(puerto) {
@@ -12,10 +13,36 @@ export default class Servidor {
     this.puerto = puerto;
     this.server = null;
 
+    // Lista de orígenes permitidos
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'https://backendtienda-p6ac.onrender.com'
+    ];
+
     // Middlewares esenciales
+    this.app.use(morgan('dev')); // Registrar solicitudes HTTP
     this.app.use(express.json()); // Para manejar JSON
-    this.app.use(cors()); // Para permitir solicitudes desde otros dominios
-    this.app.use(morgan('dev')); // Registrar solicitudes HTTP en consola
+    this.app.use(cookieParser()); // Convertir cookies a objeto JSON
+
+    this.app.use(cors({
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true); // Permite Postman u otros sin origen
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        } else {
+          return callback(new Error('Not allowed by CORS'));
+        }
+      },
+      credentials: true // <- necesario si usas cookies/autenticación
+    }));
+
+    // Middleware para manejo de errores (centralizado)
+    this.app.use((err, req, res, next) => {
+      console.error('Error en la solicitud:', err.message);
+      res.status(err.status || 500).json({
+        error: err.message || 'Error interno del servidor',
+      });
+    });
   }
 
   agregarMiddleware(middleware) {
@@ -24,22 +51,29 @@ export default class Servidor {
 
   agregarRutas(rutas) {
     rutas.forEach((ruta) => {
-      this.app[ruta.metodo](ruta.ruta, async (req, res, next) => {
-        try {
-          await ruta.controlador(req, res, next);
-        } catch (error) {
-          next(error);
-        }
-      });
-    });
+      const metodo = ruta.metodo?.toLowerCase();
 
-    // Middleware para manejar errores
-    this.app.use((err, req, res, next) => {
-      console.error('Error en la solicitud:', err);
-      res.status(500).json({ error: 'Error interno del servidor' });
+      if (metodo === 'use') {
+        // Para middlewares o routers
+        this.app.use(ruta.ruta, ruta.controlador);
+      } else if (['get', 'post', 'put', 'delete', 'patch'].includes(metodo)) {
+        this.app[metodo](
+          ruta.ruta,
+          ...(ruta.middlewares || []),
+          async (req, res, next) => {
+            try {
+              await ruta.controlador(req, res, next);
+            } catch (error) {
+              next(error);
+            }
+          }
+        );
+      } else {
+        throw new Error(`Método HTTP inválido: ${ruta.metodo}`);
+      }
     });
   }
-
+  
   iniciar() {
     this.server = this.app.listen(this.puerto, () => {
       console.log(`🚀 Servidor corriendo en http://localhost:${this.puerto}`);
@@ -47,10 +81,16 @@ export default class Servidor {
   }
 
   cerrar() {
-    if (this.server) {
-      this.server.close(() => {
-        console.log('🛑 Servidor cerrado.');
-      });
-    }
+    return new Promise((resolve, reject) => {
+      if (this.server) {
+        this.server.close((err) => {
+          if (err) return reject(err);
+          console.log('🛑 Servidor cerrado.');
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
   }
 }
