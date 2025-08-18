@@ -16,7 +16,7 @@ export default class Servidor {
     // Lista de orígenes permitidos
     const allowedOrigins = [
       'http://localhost:5173',
-      'https://gilded-tanuki-8b07e6.netlify.app/'
+      'https://gilded-tanuki-8b07e6.netlify.app'
     ];
 
     // Middlewares esenciales
