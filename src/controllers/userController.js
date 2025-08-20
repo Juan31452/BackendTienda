@@ -5,28 +5,24 @@ import { MyToken } from '../lib/jwt.js';
 // Crear un nuevo usuario
 export const createUser = async (req, res) => {
   try {
-    const { name, email, password, rol } = req.body;
+    const { name, email, password, role } = req.body;
 
-    // Validación básica
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email, and password are required" });
     }
 
-    // Verificar si el email ya está en uso
     const userFound = await User.findOne({ email });
     if (userFound) {
       return res.status(400).json({ message: "The email is already in use" });
     }
 
-    // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear usuario con rol (default cliente si no viene nada)
     const newUser = new User({
       name,
       email,
       password: hashedPassword,
-      rol: rol || "cliente"
+      role: role || "cliente" // 👈 unificado a role
     });
 
     await newUser.save();
@@ -51,6 +47,7 @@ export const getUsers = async (req, res) => {
   }
 };
 
+
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -72,15 +69,26 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    // Crear token con tu función
-    const token = await MyToken({ id: user._id, email: user.email });
+    // Crear token con id, email y rol
+    const token = await MyToken({ 
+      id: user._id, 
+      email: user.email, 
+      role: user.role  // 👈 aquí metemos el rol
+    });
 
     res.json({
       message: "Login successful",
-      token
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role  // 👈 también lo mandamos en la respuesta
+      }
     });
 
   } catch (error) {
     res.status(500).json({ message: "Error logging in", error: error.message });
   }
 };
+

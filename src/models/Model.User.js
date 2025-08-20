@@ -18,9 +18,9 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     minlength: 6, // Longitud mínima de la contraseña
-    select: false // No se muestra la contraseña por defecto
+   
   },
-   rol: {
+   role: {
     type: String,
     enum: ["admin", "cliente", "vendedor"],
     default: "cliente"
