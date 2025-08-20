@@ -5,7 +5,7 @@ import { MyToken } from '../lib/jwt.js';
 // Crear un nuevo usuario
 export const createUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, rol } = req.body;
 
     // Validación básica
     if (!name || !email || !password) {
@@ -21,11 +21,21 @@ export const createUser = async (req, res) => {
     // Encriptar contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Crear usuario
-    const newUser = new User({ name, email, password: hashedPassword });
+    // Crear usuario con rol (default cliente si no viene nada)
+    const newUser = new User({
+      name,
+      email,
+      password: hashedPassword,
+      rol: rol || "cliente"
+    });
+
     await newUser.save();
 
-    res.status(201).json({ message: "User created successfully", user: newUser });
+    res.status(201).json({
+      message: "User created successfully",
+      user: newUser
+    });
+
   } catch (error) {
     res.status(500).json({ message: "Error creating user", error: error.message });
   }
