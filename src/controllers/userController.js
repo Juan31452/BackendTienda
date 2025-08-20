@@ -69,9 +69,8 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    // Crear token con id, email y rol
-    const token = await MyToken({ 
-      id: user._id, 
+    // Crear token con email y rol
+    const token = await MyToken({  
       email: user.email, 
       role: user.role  // 👈 aquí metemos el rol
     });
@@ -80,7 +79,6 @@ export const loginUser = async (req, res) => {
       message: "Login successful",
       token,
       user: {
-        id: user._id,
         name: user.name,
         email: user.email,
         role: user.role  // 👈 también lo mandamos en la respuesta
