@@ -278,3 +278,60 @@ export const obtenerEstadisticasProductos = async (req, res) => {
   }
 };
 
+// Calcular total de ventas y cantidad de productos vendidos en un mes específico, opcionalmente filtrado por estado
+export const getTotalMes = async (req, res) => {
+  try {
+    const { año, mes, estado } = req.params;
+
+    const mesInt = parseInt(mes, 10);
+    const añoInt = parseInt(año, 10);
+
+    if (isNaN(mesInt) || isNaN(añoInt) || mesInt < 1 || mesInt > 12) {
+      return res.status(400).json({
+        success: false,
+        message: 'Parámetros inválidos. Mes debe ser 1-12 y año numérico.'
+      });
+    }
+
+    const startDate = new Date(Date.UTC(añoInt, mesInt - 1, 1));
+    const endDate = new Date(Date.UTC(añoInt, mesInt, 1));
+
+    const matchQuery = {
+      updatedAt: { $gte: startDate, $lt: endDate },
+      ...(estado ? { Estado: estado } : {})
+    };
+
+    const resultado = await Producto.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: null,
+          totalPrecio: { $sum: { $multiply: ["$Cantidad", "$Precio"] } },
+          totalVentas: { $sum: "$Cantidad" },
+          cantidadProductos: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const total = resultado[0] || { totalPrecio: 0, totalVentas: 0, cantidadProductos: 0 };
+
+    res.json({
+      success: true,
+      data: total,
+      mes: mesInt,
+      año: añoInt,
+      estado: estado || 'Todos',
+      rangoFechas: {
+        inicio: startDate.toISOString(),
+        fin: endDate.toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Error en getTotalMes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al calcular total del mes',
+      error: error.message
+    });
+  }
+};

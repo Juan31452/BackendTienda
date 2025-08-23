@@ -6,7 +6,8 @@ import {
   crearProductos,
   actualizarProducto, 
   eliminarProducto,
-  obtenerEstadisticasProductos 
+  obtenerEstadisticasProductos,
+  getTotalMes 
 } from '../controllers/Controller.Products.js';
 
 const router = express.Router();
@@ -19,6 +20,7 @@ router.post('/', crearProducto);           // Crear un nuevo producto
 router.post('/crear-multiples', crearProductos);
 router.put('/:id', actualizarProducto);    // Actualizar un producto por ID
 router.delete('/:id', eliminarProducto);   // Eliminar un producto por ID
+router.get('/total-mes/:mes/:año/:estado', getTotalMes); // Obtener total de productos por mes y año
 
 // Exportar el router para usarlo en otras partes de la aplicación
 export default router;
