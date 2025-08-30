@@ -16,13 +16,16 @@ export const rutas = [
   {
     metodo: 'use',
     ruta: '/api/productos',
-    controlador: productosRoutes  // <- Aquí se monta el router de productos
-
+    controlador: productosRoutes,  // <- Aquí se monta el router de productos
   },
-  {    
+  {
     metodo: 'use',
-    ruta: '/api/users',
-    controlador: UserRoutes  // <- Aquí se monta el router de usuarios
+    ruta: '/api/users', // Corregido de /api/health a /api/users
+    controlador: UserRoutes,  // <- Aquí se monta el router de usuarios
+  },
+  {
+    metodo: 'get',
+    ruta: '/api/health',
+    controlador: (req, res) => res.status(200).send('Server is healthy and awake!'),
   }
-
 ];
