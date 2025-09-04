@@ -223,50 +223,63 @@ export const eliminarProducto = async (req, res) => {
 // Obtener estadísticas de productos por categoría y estado
 export const obtenerEstadisticasProductos = async (req, res) => {
   try {
+    // Usamos $facet para ejecutar dos agregaciones en paralelo:
+    // 1. porCategoria: Tu lógica original para agrupar por categoría y estado.
+    // 2. totalGeneral: Una nueva agregación para contar el total de productos.
     const stats = await Producto.aggregate([
       {
-        $group: {
-          _id: {
-            Categoria: "$Categoria",
-            Estado: "$Estado"
-          },
-          total: { $sum: 1 }
-        }
-      },
-      {
-        $group: {
-          _id: "$_id.Categoria",
-          conteos: {
-            $push: {
-              estado: "$_id.Estado",
-              total: "$total"
-            }
-          }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          Categoria: "$_id",
-          estados: {
-            $arrayToObject: {
-              $map: {
-                input: "$conteos",
-                as: "item",
-                in: [
-                  "$$item.estado",
-                  "$$item.total"
-                ]
+        $facet: {
+          porCategoria: [
+            {
+              $group: {
+                _id: { Categoria: "$Categoria", Estado: "$Estado" },
+                total: { $sum: 1 }
+              }
+            },
+            {
+              $group: {
+                _id: "$_id.Categoria",
+                conteos: {
+                  $push: { estado: "$_id.Estado", total: "$total" }
+                }
+              }
+            },
+            {
+              $project: {
+                _id: 0,
+                Categoria: "$_id",
+                estados: {
+                  $arrayToObject: {
+                    $map: {
+                      input: "$conteos",
+                      as: "item",
+                      in: ["$$item.estado", "$$item.total"]
+                    }
+                  }
+                }
               }
             }
-          }
+          ],
+          totalGeneral: [
+            {
+              $group: {
+                _id: null,
+                total: { $sum: 1 }
+              }
+            }
+          ]
         }
       }
     ]);
 
+    // Extraemos los resultados de cada pipeline del facet
+    const estadisticas = stats[0]?.porCategoria || [];
+    const totalProductos = stats[0]?.totalGeneral[0]?.total || 0;
+
     res.status(200).json({
       success: true,
-      estadisticas: stats
+      estadisticas,
+      totalProductos
     });
   } catch (error) {
     console.error('Error al obtener estadísticas:', error);
