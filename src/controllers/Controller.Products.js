@@ -220,76 +220,66 @@ export const eliminarProducto = async (req, res) => {
   }
 };
 
-// Obtener estadísticas de productos por categoría y estado
+// Obtener estadísticas de productos por categoría y estado (normalizado)
 export const obtenerEstadisticasProductos = async (req, res) => {
   try {
-    // Usamos $facet para ejecutar dos agregaciones en paralelo:
-    // 1. porCategoria: Tu lógica original para agrupar por categoría y estado.
-    // 2. totalGeneral: Una nueva agregación para contar el total de productos.
-    const stats = await Producto.aggregate([
+    const resultados = await Producto.aggregate([
       {
-        $facet: {
-          porCategoria: [
-            {
-              $group: {
-                _id: { Categoria: "$Categoria", Estado: "$Estado" },
-                total: { $sum: 1 }
-              }
-            },
-            {
-              $group: {
-                _id: "$_id.Categoria",
-                conteos: {
-                  $push: { estado: "$_id.Estado", total: "$total" }
-                }
-              }
-            },
-            {
-              $project: {
-                _id: 0,
-                Categoria: "$_id",
-                estados: {
-                  $arrayToObject: {
-                    $map: {
-                      input: "$conteos",
-                      as: "item",
-                      in: ["$$item.estado", "$$item.total"]
-                    }
-                  }
-                }
-              }
-            }
-          ],
-          totalGeneral: [
-            {
-              $group: {
-                _id: null,
-                total: { $sum: 1 }
-              }
-            }
-          ]
+        $group: {
+          _id: { Categoria: "$Categoria", Estado: "$Estado" },
+          total: { $sum: 1 }
         }
       }
     ]);
 
-    // Extraemos los resultados de cada pipeline del facet
-    const estadisticas = stats[0]?.porCategoria || [];
-    const totalProductos = stats[0]?.totalGeneral[0]?.total || 0;
+    // --- Procesamos en Node ---
+    const estadisticasMap = {};
+
+    resultados.forEach(r => {
+      // Normalizamos categoría y estado
+      const categoria = (r._id.Categoria || "Sin categoría").trim();
+      const estado = (r._id.Estado || "Desconocido").trim().toLowerCase();
+
+      if (!estadisticasMap[categoria]) estadisticasMap[categoria] = {};
+      estadisticasMap[categoria][estado] =
+        (estadisticasMap[categoria][estado] || 0) + r.total;
+    });
+
+    // Convertimos a array
+    const estadisticas = Object.entries(estadisticasMap).map(([categoria, estados]) => ({
+      Categoria: categoria,
+      estados
+    }));
+
+    // --- Calcular "Todos" sumando dinámicamente los estados ---
+    const totalesPorEstado = estadisticas.reduce((acc, cat) => {
+      Object.entries(cat.estados).forEach(([estado, valor]) => {
+        acc[estado] = (acc[estado] || 0) + valor;
+      });
+      return acc;
+    }, {});
+
+    // Insertamos el total general al inicio
+    estadisticas.unshift({
+      Categoria: "Todos",
+      estados: totalesPorEstado
+    });
 
     res.status(200).json({
       success: true,
-      estadisticas,
-      totalProductos
+      estadisticas
     });
   } catch (error) {
-    console.error('Error al obtener estadísticas:', error);
+    console.error("Error al obtener estadísticas:", error);
     res.status(500).json({
       success: false,
-      message: 'Error al obtener las estadísticas',
+      message: "Error al obtener las estadísticas",
       error: error.message
     });
   }
 };
+
+
 
 // Calcular total de ventas y cantidad de productos vendidos en un mes específico, opcionalmente filtrado por estado
 export const getTotalMes = async (req, res) => {
