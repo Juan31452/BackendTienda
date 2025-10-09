@@ -52,8 +52,11 @@ export const obtenerProductos = async (req, res) => {
       if (maxPrecio) query.Precio.$lte = Number(maxPrecio);
     }
 
+    // Determinar si el usuario está autorizado para ver precios
+    const puedeVerPrecios = req.user && (req.user.role === 'admin' || req.user.role === 'vendedor');
+
     // ✅ Consulta paginada y ordenada por IdProducto (convertido a float)
-    const productos = await Producto.aggregate([
+    const pipeline = [
       { $match: query },
       {
         $addFields: {
@@ -62,8 +65,16 @@ export const obtenerProductos = async (req, res) => {
       },
       { $sort: { IdProductoFloat: 1 } },
       { $skip: (safePage - 1) * safeLimit },
-      { $limit: safeLimit }
-    ]);
+      { $limit: safeLimit },
+      // Proyección condicional de campos
+      {
+        $project: {
+          Precio: puedeVerPrecios ? 1 : 0 // Incluye Precio si está autorizado, de lo contrario lo excluye
+        }
+      }
+    ];
+
+    const productos = await Producto.aggregate(pipeline);
 
     const count = await Producto.countDocuments(query);
 
@@ -105,6 +116,11 @@ export const obtenerProductoPorId = async (req, res) => {
 // Crear un nuevo producto
 export const crearProducto = async (req, res) => {
   try {
+    // ✅ Verificación de rol
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'vendedor')) {
+      return errorResponse(res, 'No tienes permiso para realizar esta acción', 403);
+    }
+
     const { IdProducto, Descripcion, Precio } = req.body;
     
     if (!IdProducto || !Descripcion || !Precio) {
@@ -182,6 +198,11 @@ export const crearProductos = async (req, res) => {
 // Actualizar un producto por ID
 export const actualizarProducto = async (req, res) => {
   try {
+    // ✅ Verificación de rol
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'vendedor')) {
+      return errorResponse(res, 'No tienes permiso para realizar esta acción', 403);
+    }
+
     if (Object.keys(req.body).length === 0) {  // Nueva validación
       return errorResponse(res, 'No hay datos para actualizar', 400);
     }

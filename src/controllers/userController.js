@@ -29,7 +29,12 @@ export const createUser = async (req, res) => {
 
     res.status(201).json({
       message: "User created successfully",
-      user: newUser
+      user: { // 👈 Devolver solo los campos necesarios
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role
+      }
     });
 
   } catch (error) {
@@ -89,4 +94,3 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ message: "Error logging in", error: error.message });
   }
 };
-
