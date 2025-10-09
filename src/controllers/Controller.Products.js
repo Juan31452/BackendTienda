@@ -68,21 +68,13 @@ export const obtenerProductos = async (req, res) => {
       { $limit: safeLimit },
       // Proyección condicional de campos
       {
-        // ✅ Solución: Usar $project para reconstruir el documento
-        $project: { 
-          _id: 1, // Mantener el _id
-          IdProducto: 1,
-          Descripcion: 1,
-          Cantidad: 1,
-          Color: 1,
-          Talla: 1,
-          Imagen: 1,
-          Categoria: 1,
-          Estado: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          Precio: { $cond: { if: puedeVerPrecios, then: "$Precio", else: "$$REMOVE" } }
-        } 
+        // ✅ Solución definitiva: Usar $$ROOT para mantener todos los campos
+        // y solo modificar el campo Precio.
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: [ "$$ROOT", { Precio: { $cond: { if: puedeVerPrecios, then: "$Precio", else: "$$REMOVE" } } } ]
+          }
+        }
       }
     ];
 
