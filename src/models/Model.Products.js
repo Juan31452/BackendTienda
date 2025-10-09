@@ -12,5 +12,14 @@ const productoSchema = new mongoose.Schema({
   Estado: { type: String, required: true }
 }, { timestamps: true });
 
+// ✅ Índice de texto para búsqueda semántica (Búsqueda Inteligente)
+// Esto le indica a MongoDB que cree un índice especial que permite búsquedas
+// de texto eficientes en los campos especificados.
+productoSchema.index({
+  Descripcion: 'text',
+  Categoria: 'text',
+  Color: 'text'
+});
+
 const Products = mongoose.model('Products', productoSchema);
 export default Products;

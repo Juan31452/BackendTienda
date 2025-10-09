@@ -25,7 +25,7 @@ const errorResponse = (res, error, status = 500, details = null) => {
 // Obtener todos los productos con paginación
 export const obtenerProductos = async (req, res) => {
   try {
-    let { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio } = req.query;
+    let { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio, search } = req.query;
 
     // 🛡 Validaciones seguras de números
     const pageNum  = Number(page);
@@ -35,6 +35,11 @@ export const obtenerProductos = async (req, res) => {
     const safeLimit = Number.isInteger(limitNum) && limitNum > 0 ? limitNum : 100;
 
     const query = {};
+
+    // ✅ Filtro de búsqueda de texto (Búsqueda Semántica)
+    if (search) {
+      query.$text = { $search: search };
+    }
 
     // ✅ Filtros seguros
     if (categoria && categoria !== 'undefined') {
@@ -59,16 +64,29 @@ export const obtenerProductos = async (req, res) => {
     // Usamos $facet para ejecutar dos pipelines en paralelo: uno para los datos y otro para el conteo total.
     // Esto nos ahorra una consulta a la base de datos.
     const results = await Producto.aggregate([
+      // ✅ CORRECCIÓN: Mueve el $match principal fuera y antes del $facet.
+      // Esto asegura que el textScore esté disponible para todos los sub-pipelines.
+      { $match: query },
       {
         $facet: {
           // Pipeline para obtener los productos de la página actual
           productos: [
-            { $match: query },
-            { $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } },
-            { $sort: { IdProductoFloat: 1 } },
+            // Si estamos buscando, ordenamos por relevancia. Si no, por IdProducto.
+            ...(search
+              ? [
+                  // ✅ CORRECCIÓN: Proyecta el campo 'score' antes de intentar ordenar por él.
+                  { $addFields: { score: { $meta: "textScore" } } },
+                  { $sort: { score: -1 } } // Ordena de mayor a menor relevancia
+                ]
+              : [
+                  { $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } },
+                  { $sort: { IdProductoFloat: 1 } }
+                ]
+            ),
             { $skip: (safePage - 1) * safeLimit },
             { $limit: safeLimit },
             {
+              // Proyección condicional para ocultar el precio a los no autorizados
               $replaceRoot: {
                 newRoot: {
                   $mergeObjects: [ "$$ROOT", { Precio: { $cond: { if: puedeVerPrecios, then: "$Precio", else: "$$REMOVE" } } } ]
@@ -78,7 +96,6 @@ export const obtenerProductos = async (req, res) => {
           ],
           // Pipeline para obtener el conteo total de documentos que coinciden con el filtro
           totalItems: [
-            { $match: query },
             { $count: 'count' }
           ]
         }
