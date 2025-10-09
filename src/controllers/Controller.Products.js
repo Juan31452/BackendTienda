@@ -68,9 +68,21 @@ export const obtenerProductos = async (req, res) => {
       { $limit: safeLimit },
       // Proyección condicional de campos
       {
-        $project: {
-          Precio: puedeVerPrecios ? 1 : 0 // Incluye Precio si está autorizado, de lo contrario lo excluye
-        }
+        // ✅ Solución: Usar $project para reconstruir el documento
+        $project: { 
+          _id: 1, // Mantener el _id
+          IdProducto: 1,
+          Descripcion: 1,
+          Cantidad: 1,
+          Color: 1,
+          Talla: 1,
+          Imagen: 1,
+          Categoria: 1,
+          Estado: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          Precio: { $cond: { if: puedeVerPrecios, then: "$Precio", else: "$$REMOVE" } }
+        } 
       }
     ];
 
