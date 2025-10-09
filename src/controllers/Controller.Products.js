@@ -56,31 +56,37 @@ export const obtenerProductos = async (req, res) => {
     const puedeVerPrecios = req.user && (req.user.role === 'admin' || req.user.role === 'vendedor');
 
     // ✅ Consulta paginada y ordenada por IdProducto (convertido a float)
-    const pipeline = [
-      { $match: query },
+    // Usamos $facet para ejecutar dos pipelines en paralelo: uno para los datos y otro para el conteo total.
+    // Esto nos ahorra una consulta a la base de datos.
+    const results = await Producto.aggregate([
       {
-        $addFields: {
-          IdProductoFloat: { $toDouble: "$IdProducto" }
-        }
-      },
-      { $sort: { IdProductoFloat: 1 } },
-      { $skip: (safePage - 1) * safeLimit },
-      { $limit: safeLimit },
-      // Proyección condicional de campos
-      {
-        // ✅ Solución definitiva: Usar $$ROOT para mantener todos los campos
-        // y solo modificar el campo Precio.
-        $replaceRoot: {
-          newRoot: {
-            $mergeObjects: [ "$$ROOT", { Precio: { $cond: { if: puedeVerPrecios, then: "$Precio", else: "$$REMOVE" } } } ]
-          }
+        $facet: {
+          // Pipeline para obtener los productos de la página actual
+          productos: [
+            { $match: query },
+            { $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } },
+            { $sort: { IdProductoFloat: 1 } },
+            { $skip: (safePage - 1) * safeLimit },
+            { $limit: safeLimit },
+            {
+              $replaceRoot: {
+                newRoot: {
+                  $mergeObjects: [ "$$ROOT", { Precio: { $cond: { if: puedeVerPrecios, then: "$Precio", else: "$$REMOVE" } } } ]
+                }
+              }
+            }
+          ],
+          // Pipeline para obtener el conteo total de documentos que coinciden con el filtro
+          totalItems: [
+            { $match: query },
+            { $count: 'count' }
+          ]
         }
       }
-    ];
+    ]);
 
-    const productos = await Producto.aggregate(pipeline);
-
-    const count = await Producto.countDocuments(query);
+    const productos = results[0].productos;
+    const count = results[0].totalItems.length > 0 ? results[0].totalItems[0].count : 0;
 
     res.status(200).json({
       success: true,
