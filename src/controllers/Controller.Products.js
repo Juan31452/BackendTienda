@@ -143,11 +143,7 @@ export const obtenerProductoPorId = async (req, res) => {
 // Crear un nuevo producto
 export const crearProducto = async (req, res) => {
   try {
-    // ✅ Verificación de rol
-    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'vendedor')) {
-      return errorResponse(res, 'No tienes permiso para realizar esta acción', 403);
-    }
-
+    
     const { IdProducto, Descripcion, Precio } = req.body;
     
     if (!IdProducto || !Descripcion || !Precio) {
@@ -171,11 +167,7 @@ export const crearProducto = async (req, res) => {
 // Crear múltiples productos
 export const crearProductos = async (req, res) => {
   try {
-    // ✅ Verificación de rol
-    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'vendedor')) {
-      return errorResponse(res, 'No tienes permiso para realizar esta acción', 403);
-    }
-
+    
     const productos = req.body;
 
     if (!Array.isArray(productos)) {  // Corrección aquí
@@ -230,11 +222,7 @@ export const crearProductos = async (req, res) => {
 // Actualizar un producto por ID
 export const actualizarProducto = async (req, res) => {
   try {
-    // ✅ Verificación de rol
-    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'vendedor')) {
-      return errorResponse(res, 'No tienes permiso para realizar esta acción', 403);
-    }
-
+    
     if (Object.keys(req.body).length === 0) {  // Nueva validación
       return errorResponse(res, 'No hay datos para actualizar', 400);
     }
@@ -258,10 +246,6 @@ export const actualizarProducto = async (req, res) => {
 // Eliminar un producto por ID
 export const eliminarProducto = async (req, res) => {
   try {
-    // ✅ Verificación de rol: Solo 'admin' puede eliminar
-    if (!req.user || req.user.role !== 'admin') {
-      return errorResponse(res, 'No tienes permiso para realizar esta acción', 403);
-    }
 
     const productoEliminado = await Producto.findOneAndDelete({ IdProducto: req.params.id });
     
