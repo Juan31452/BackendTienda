@@ -19,13 +19,12 @@ const router = express.Router();
 // --- Rutas Públicas (Cualquiera puede acceder) ---
 router.get('/', obtenerProductos); // Obtener todos los productos (la lógica de precios ya está protegida en el controlador)
 router.get('/:id', obtenerProductoPorId);  // Obtener un producto por ID
-router.put('/:id', actualizarProducto);    // Actualizar un producto por ID
 
 // --- Rutas Protegidas (Requieren token y rol específico) ---
 
 // Solo 'admin'  pueden crear, actualizar o eliminar productos.
 router.post('/', verifyToken, requireRole('admin'), crearProducto);
-router.post('/crear-multiples', verifyToken_requireRole('admin'), crearProductos);
+router.post('/crear-multiples', verifyToken, requireRole('admin'), crearProductos);
 router.put('/:id', verifyToken, requireRole('admin'), actualizarProducto);
 router.delete('/:id', verifyToken, requireRole('admin'), eliminarProducto); // Solo 'admin' puede eliminar
 
