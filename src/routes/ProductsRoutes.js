@@ -9,18 +9,29 @@ import {
   obtenerEstadisticasProductos,
   getTotalMes 
 } from '../controllers/Controller.Products.js';
+import { verifyToken } from '../middlewares/verifyToken.js';
+import { requireRole } from '../middlewares/requireRole.js';
 
 const router = express.Router();
 
 // Definir las rutas para productos
-router.get('/', obtenerProductos);         // Obtener todos los productos
-router.get('/estadisticas', obtenerEstadisticasProductos); // Obtener estadísticas de productos
+
+// --- Rutas Públicas (Cualquiera puede acceder) ---
+router.get('/', obtenerProductos); // Obtener todos los productos (la lógica de precios ya está protegida en el controlador)
 router.get('/:id', obtenerProductoPorId);  // Obtener un producto por ID
-router.post('/', crearProducto);           // Crear un nuevo producto
-router.post('/crear-multiples', crearProductos);
 router.put('/:id', actualizarProducto);    // Actualizar un producto por ID
-router.delete('/:id', eliminarProducto);   // Eliminar un producto por ID
-router.get('/total-mes/:mes/:año/:estado', getTotalMes); // Obtener total de productos por mes y año
+
+// --- Rutas Protegidas (Requieren token y rol específico) ---
+
+// Solo 'admin'  pueden crear, actualizar o eliminar productos.
+router.post('/', verifyToken, requireRole('admin'), crearProducto);
+router.post('/crear-multiples', verifyToken_requireRole('admin'), crearProductos);
+router.put('/:id', verifyToken, requireRole('admin'), actualizarProducto);
+router.delete('/:id', verifyToken, requireRole('admin'), eliminarProducto); // Solo 'admin' puede eliminar
+
+// Rutas para estadísticas y totales, podrían ser solo para roles autorizados.
+router.get('/estadisticas', verifyToken, requireRole('admin', 'vendedor'), obtenerEstadisticasProductos);
+router.get('/total-mes/:mes/:año/:estado', verifyToken, requireRole('admin', 'vendedor'), getTotalMes);
 
 // Exportar el router para usarlo en otras partes de la aplicación
 export default router;
