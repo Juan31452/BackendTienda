@@ -274,24 +274,26 @@ export const obtenerEstadisticasProductos = async (req, res) => {
       }
     ]);
 
-    // --- Procesamos en Node ---
+    // --- Procesamos en Node para agrupar por categoría ---
     const estadisticasMap = {};
 
     resultados.forEach(r => {
-      // Normalizamos categoría y estado
       const categoria = (r._id.Categoria || "Sin categoría").trim();
-      const estado = (r._id.Estado || "Desconocido").trim().toLowerCase();
+      const estado = (r._id.Estado || "Desconocido").trim();
 
-      if (!estadisticasMap[categoria]) estadisticasMap[categoria] = {};
-      estadisticasMap[categoria][estado] =
-        (estadisticasMap[categoria][estado] || 0) + r.total;
+      // Si la categoría no existe en el mapa, la inicializamos
+      if (!estadisticasMap[categoria]) {
+        estadisticasMap[categoria] = {
+          Categoria: categoria,
+          estados: {} // ✅ Usamos un objeto para los estados
+        };
+      }
+      // Añadimos o sumamos el total para el estado correspondiente
+      estadisticasMap[categoria].estados[estado] = (estadisticasMap[categoria].estados[estado] || 0) + r.total;
     });
 
-    // Convertimos a array
-    const estadisticas = Object.entries(estadisticasMap).map(([categoria, estados]) => ({
-      Categoria: categoria,
-      estados
-    }));
+    // Convertimos el mapa de objetos a un array de valores
+    const estadisticas = Object.values(estadisticasMap);
 
     // --- Calcular "Todos" sumando dinámicamente los estados ---
     const totalesPorEstado = estadisticas.reduce((acc, cat) => {
