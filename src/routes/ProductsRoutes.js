@@ -10,6 +10,7 @@ import {
   getTotalMes 
 } from '../controllers/Controller.Products.js';
 import { verifyToken } from '../middlewares/verifyToken.js';
+import { optionalVerifyToken } from '../middlewares/optionalVerifyToken.js';
 import { requireRole } from '../middlewares/requireRole.js';
 
 const router = express.Router();
@@ -17,7 +18,7 @@ const router = express.Router();
 // Definir las rutas para productos
 
 // --- Rutas Públicas (Cualquiera puede acceder) ---
-router.get('/', obtenerProductos); // Obtener todos los productos (la lógica de precios ya está protegida en el controlador)
+router.get('/', optionalVerifyToken, obtenerProductos); // Ruta pública, el token es opcional. El controlador decide si muestra precios.
 
 // --- Rutas Protegidas (Requieren token y rol específico) ---
 

@@ -38,7 +38,11 @@ export const obtenerProductos = async (req, res) => {
 
     // ✅ Filtro de búsqueda de texto (Búsqueda Semántica)
     if (search) {
-      query.$text = { $search: search };
+      // Si hay más de una palabra, las encerramos en comillas para una búsqueda AND.
+      // Si es una sola palabra, se busca normalmente.
+      const terms = search.split(' ').filter(term => term);
+      const searchExpression = terms.length > 1 ? terms.map(term => `"${term}"`).join(' ') : search;
+      query.$text = { $search: searchExpression };
     }
 
     // ✅ Filtros seguros
@@ -265,7 +269,18 @@ export const eliminarProducto = async (req, res) => {
 // Obtener estadísticas de productos por categoría y estado (normalizado)
 export const obtenerEstadisticasProductos = async (req, res) => {
   try {
+    const { search } = req.query;
+    const pipeline = [];
+
+    // 1. Si hay un término de búsqueda, lo añadimos como primera etapa del pipeline.
+    // Esto filtra los documentos ANTES de la agrupación.
+    if (search) {
+      pipeline.push({ $match: { $text: { $search: search } } });
+    }
+
+    // 2. Añadimos la etapa de agrupación al pipeline.
     const resultados = await Producto.aggregate([
+      ...pipeline, // <-- Se aplica el filtro de búsqueda aquí si existe
       {
         $group: {
           _id: { Categoria: "$Categoria", Estado: "$Estado" },
