@@ -31,7 +31,7 @@ router.get('/estadisticas', verifyToken, requireRole('admin', 'vendedor'), obten
 router.get('/total-mes/:mes/:año/:estado', verifyToken, requireRole('admin', 'vendedor'), getTotalMes);
 
 // --- Rutas con parámetros (deben ir al final para no interceptar otras) ---
-router.get('/:id', obtenerProductoPorId);  // Obtener un producto por ID
+router.get('/:id',verifyToken, requireRole('admin'), obtenerProductoPorId);  // Obtener un producto por ID
 router.put('/:id', verifyToken, requireRole('admin'), actualizarProducto);
 router.delete('/:id', verifyToken, requireRole('admin'), eliminarProducto); // Solo 'admin' puede eliminar
 

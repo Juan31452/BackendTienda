@@ -64,23 +64,16 @@ export const obtenerProductos = async (req, res) => {
     // Determinar si el usuario está autorizado para ver precios
     const puedeVerPrecios = req.user && (req.user.role === 'admin' || req.user.role === 'vendedor');
 
-    // ✅ Consulta paginada y ordenada por IdProducto (convertido a float)
-    // Usamos $facet para ejecutar dos pipelines en paralelo: uno para los datos y otro para el conteo total.
-    // Esto nos ahorra una consulta a la base de datos.
-    const results = await Producto.aggregate([
-      // ✅ CORRECCIÓN: Mueve el $match principal fuera y antes del $facet.
-      // Esto asegura que el textScore esté disponible para todos los sub-pipelines.
+    // Construcción del pipeline de agregación
+    const pipeline = [
       { $match: query },
       {
         $facet: {
-          // Pipeline para obtener los productos de la página actual
           productos: [
-            // Si estamos buscando, ordenamos por relevancia. Si no, por IdProducto.
             ...(search
               ? [
-                  // ✅ CORRECCIÓN: Proyecta el campo 'score' antes de intentar ordenar por él.
                   { $addFields: { score: { $meta: "textScore" } } },
-                  { $sort: { score: -1 } } // Ordena de mayor a menor relevancia
+                  { $sort: { score: -1 } }
                 ]
               : [
                   { $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } },
@@ -89,22 +82,24 @@ export const obtenerProductos = async (req, res) => {
             ),
             { $skip: (safePage - 1) * safeLimit },
             { $limit: safeLimit },
-            {
-              // Proyección condicional para ocultar el precio a los no autorizados
-              $replaceRoot: {
-                newRoot: {
-                  $mergeObjects: [ "$$ROOT", { Precio: { $cond: { if: puedeVerPrecios, then: "$Precio", else: "$$REMOVE" } } } ]
-                }
-              }
-            }
           ],
-          // Pipeline para obtener el conteo total de documentos que coinciden con el filtro
           totalItems: [
             { $count: 'count' }
           ]
         }
       }
-    ]);
+    ];
+
+    // Si el usuario NO puede ver precios, añadimos una etapa para remover el campo 'Precio'
+    // de cada producto en el resultado del facet.
+    if (!puedeVerPrecios) {
+      pipeline[1].$facet.productos.push({ $project: { Precio: 0 } });
+    }
+
+    // ✅ Consulta paginada y ordenada por IdProducto (convertido a float)
+    // Usamos $facet para ejecutar dos pipelines en paralelo: uno para los datos y otro para el conteo total.
+    // Esto nos ahorra una consulta a la base de datos.
+    const results = await Producto.aggregate(pipeline);
 
     const productos = results[0].productos;
     const count = results[0].totalItems.length > 0 ? results[0].totalItems[0].count : 0;
@@ -139,6 +134,7 @@ export const obtenerProductoPorId = async (req, res) => {
       return errorResponse(res, 'Producto no encontrado', 404);
     }
     successResponse(res, producto);
+    successResponse(res, producto); // .lean() devuelve un objeto JS plano, lo cual es más eficiente
   } catch (error) {
     errorResponse(res, 'Error al obtener el producto', 500, error.message);
   }
