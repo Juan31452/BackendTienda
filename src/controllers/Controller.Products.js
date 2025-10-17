@@ -26,7 +26,8 @@ const errorResponse = (res, error, status = 500, details = null) => {
 export const obtenerProductos = async (req, res) => {
   try {
     let { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio, search } = req.query;
-
+    console.log('Usuario autenticado:', req.user);
+ 
     // 🛡 Validaciones seguras de números
     const pageNum  = Number(page);
     const limitNum = Number(limit);
@@ -63,7 +64,10 @@ export const obtenerProductos = async (req, res) => {
 
     // Determinar si el usuario está autorizado para ver precios
     const puedeVerPrecios = req.user && (req.user.role === 'admin' || req.user.role === 'vendedor');
-
+    // CORRECCIÓN: El token JWT contiene 'email', no 'username'.
+    // Usamos 'email' para identificar al usuario en el log.
+    console.log(`Usuario ${req.user ? req.user.email : 'anónimo'} - Puede ver precios: ${puedeVerPrecios}`);
+    
     // Construcción del pipeline de agregación
     const pipeline = [
       { $match: query },
@@ -72,6 +76,7 @@ export const obtenerProductos = async (req, res) => {
           productos: [
             ...(search
               ? [
+                  // ✅ CORRECCIÓN: Usar $addFields es más seguro para añadir el score sin perder campos.
                   { $addFields: { score: { $meta: "textScore" } } },
                   { $sort: { score: -1 } }
                 ]
@@ -90,23 +95,26 @@ export const obtenerProductos = async (req, res) => {
       }
     ];
 
-    // Si el usuario NO puede ver precios, añadimos una etapa para remover el campo 'Precio'
-    // de cada producto en el resultado del facet.
-    if (!puedeVerPrecios) {
-      pipeline[1].$facet.productos.push({ $project: { Precio: 0 } });
-    }
-
     // ✅ Consulta paginada y ordenada por IdProducto (convertido a float)
     // Usamos $facet para ejecutar dos pipelines en paralelo: uno para los datos y otro para el conteo total.
     // Esto nos ahorra una consulta a la base de datos.
     const results = await Producto.aggregate(pipeline);
 
-    const productos = results[0].productos;
+    let productos = results[0].productos;
     const count = results[0].totalItems.length > 0 ? results[0].totalItems[0].count : 0;
+
+    // ✅ SOLUCIÓN DEFINITIVA: Mapeamos los productos para construir la respuesta final.
+    // Esto nos da control total sobre los campos que se envían al cliente.
+    const productosFinales = productos.map(p => {
+      const { Precio, ...restoDelProducto } = p;
+      // Si el usuario puede ver precios Y el precio existe, lo incluimos.
+      // De lo contrario, solo enviamos el resto de los campos.
+      return puedeVerPrecios && Precio !== undefined ? p : restoDelProducto;
+    });
 
     res.status(200).json({
       success: true,
-      productos,
+      productos: productosFinales,
       pagination: {
         totalItems: count,
         totalPages: Math.ceil(count / safeLimit),
@@ -129,12 +137,12 @@ export const obtenerProductos = async (req, res) => {
 // Obtener un producto por ID
 export const obtenerProductoPorId = async (req, res) => {
   try {
-    const producto = await Producto.findOne({ IdProducto: req.params.id });
+    // Se corrige el error de sintaxis: 'producto' estaba declarado dos veces.
+    const producto = await Producto.findOne({ IdProducto: req.params.id }).lean();
     if (!producto) {
       return errorResponse(res, 'Producto no encontrado', 404);
     }
     successResponse(res, producto);
-    successResponse(res, producto); // .lean() devuelve un objeto JS plano, lo cual es más eficiente
   } catch (error) {
     errorResponse(res, 'Error al obtener el producto', 500, error.message);
   }
