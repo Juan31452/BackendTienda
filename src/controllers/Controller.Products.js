@@ -51,8 +51,19 @@ export const obtenerProductos = async (req, res) => {
       query.Categoria = categoria;
     }
 
-    if (estado && estado !== 'undefined') {
-      query.Estado = estado;
+    // --- LÓGICA DE ESTADO BASADA EN ROL (SOLUCIÓN DEFINITIVA) ---
+    const esAdmin = req.user && req.user.role === 'admin';
+
+    if (esAdmin) {
+      // Si el usuario es 'admin', se respeta el filtro de estado si se proporciona.
+      // Si no se envía, no se filtra por estado, permitiendo ver todos los productos.
+      if (estado && estado !== 'undefined') {
+        query.Estado = estado;
+      }
+    } else {
+      // Si el usuario NO es 'admin' (invitado, cliente, etc.),
+      // se fuerza a que solo vea los productos en estados públicos.
+      query.Estado = { $in: ['Disponible', 'Nuevo', 'Oferta'] };
     }
 
     // ✅ Filtro por rango de precio
