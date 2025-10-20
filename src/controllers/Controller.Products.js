@@ -39,11 +39,8 @@ export const obtenerProductos = async (req, res) => {
 
     // ✅ Filtro de búsqueda de texto (Búsqueda Semántica)
     if (search) {
-      // Si hay más de una palabra, las encerramos en comillas para una búsqueda AND.
-      // Si es una sola palabra, se busca normalmente.
-      const terms = search.split(' ').filter(term => term);
-      const searchExpression = terms.length > 1 ? terms.map(term => `"${term}"`).join(' ') : search;
-      query.$text = { $search: searchExpression };
+      // MongoDB realiza una búsqueda AND por defecto con los términos separados por espacio.
+      query.$text = { $search: search };
     }
 
     // ✅ Filtros seguros
@@ -117,11 +114,15 @@ export const obtenerProductos = async (req, res) => {
     // ✅ SOLUCIÓN DEFINITIVA: Mapeamos los productos para construir la respuesta final.
     // Esto nos da control total sobre los campos que se envían al cliente.
     const productosFinales = productos.map(p => {
-      const productoObjeto = p.toObject ? p.toObject() : p; // Convertimos a objeto plano
-      const { Precio, ...restoDelProducto } = productoObjeto;
-      // Si el usuario puede ver precios Y el precio existe, lo incluimos.
-      // De lo contrario, solo enviamos el resto de los campos.
-      return puedeVerPrecios && Precio !== undefined ? p : restoDelProducto;
+      // 1. Siempre convertimos a un objeto plano para consistencia.
+      const productoObjeto = p.toObject ? p.toObject() : p;
+
+      // 2. Si el usuario no puede ver precios, eliminamos la propiedad del objeto.
+      if (!puedeVerPrecios) {
+        delete productoObjeto.Precio;
+      }
+      // 3. Devolvemos el objeto modificado (o el original si tiene permisos).
+      return productoObjeto;
     });
 
     res.status(200).json({
