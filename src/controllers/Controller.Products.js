@@ -117,7 +117,8 @@ export const obtenerProductos = async (req, res) => {
     // ✅ SOLUCIÓN DEFINITIVA: Mapeamos los productos para construir la respuesta final.
     // Esto nos da control total sobre los campos que se envían al cliente.
     const productosFinales = productos.map(p => {
-      const { Precio, ...restoDelProducto } = p;
+      const productoObjeto = p.toObject ? p.toObject() : p; // Convertimos a objeto plano
+      const { Precio, ...restoDelProducto } = productoObjeto;
       // Si el usuario puede ver precios Y el precio existe, lo incluimos.
       // De lo contrario, solo enviamos el resto de los campos.
       return puedeVerPrecios && Precio !== undefined ? p : restoDelProducto;
