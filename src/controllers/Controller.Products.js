@@ -51,10 +51,19 @@ export const obtenerProductos = async (req, res) => {
       query.Categoria = categoria;
     }
 
-    if (estado && estado !== 'undefined') {
-      query.Estado = estado;
-    }
+    // ✅ Filtro de estado basado en el rol del usuario
+    const esAdmin = req.user && req.user.role === 'admin';
 
+    if (esAdmin) {
+      // Si es admin, puede filtrar por cualquier estado que se le envíe.
+      // Si no se envía 'estado', no se filtra por estado.
+      if (estado && estado !== 'undefined') {
+        query.Estado = estado;
+      }
+    } else {
+      // Si NO es admin (vendedor, invitado, etc.), forzamos a ver solo los disponibles.
+      query.Estado = 'disponible';
+    }
     // ✅ Filtro por rango de precio
     if (minPrecio || maxPrecio) {
       query.Precio = {};
