@@ -54,6 +54,9 @@ export const obtenerProductos = async (req, res) => {
     // ✅ Filtro de estado basado en el rol del usuario
     const esAdmin = req.user && req.user.role === 'admin';
 
+    // Estados permitidos para usuarios no administradores
+    const estadosPermitidosNoAdmin = ['disponible', 'nuevo', 'oferta'];
+
     if (esAdmin) {
       // Si es admin, puede filtrar por cualquier estado que se le envíe.
       // Si no se envía 'estado', no se filtra por estado.
@@ -61,8 +64,14 @@ export const obtenerProductos = async (req, res) => {
         query.Estado = estado;
       }
     } else {
-      // Si NO es admin (vendedor, invitado, etc.), forzamos a ver solo los disponibles.
-      query.Estado = 'disponible';
+      // Para usuarios no administradores, solo se muestran productos 'disponible', 'nuevo' u 'oferta'.
+      // Si se especifica un estado, se valida que sea uno de los permitidos.
+      // Si no se especifica o es inválido, se muestra 'disponible' y 'nuevo' por defecto.
+      if (estado && estado !== 'undefined' && estadosPermitidosNoAdmin.includes(estado.toLowerCase())) {
+        query.Estado = estado;
+      } else {
+        query.Estado = { $in: ['disponible', 'nuevo'] };
+      }
     }
     // ✅ Filtro por rango de precio
     if (minPrecio || maxPrecio) {
