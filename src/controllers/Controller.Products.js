@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Producto from '../models/Model.Products.js';
+import { applySemanticSearch } from '../../services/searchService.js';
 
 /**
  * Formato estándar de respuesta exitosa
@@ -37,12 +38,6 @@ export const obtenerProductos = async (req, res) => {
 
     const query = {};
 
-    // ✅ Filtro de búsqueda de texto (Búsqueda Semántica)
-    if (search) {
-      // MongoDB realiza una búsqueda AND por defecto con los términos separados por espacio.
-      query.$text = { $search: search };
-    }
-
     // ✅ Filtros seguros
     if (categoria && categoria !== 'undefined') {
       query.Categoria = categoria;
@@ -69,12 +64,13 @@ export const obtenerProductos = async (req, res) => {
       }
     }
 
-    // 2. Lógica para la Búsqueda Semántica (sobrescribe la lógica base si es necesario)
+    // ✅ Lógica de Búsqueda Semántica (extraída a un servicio)
+    let sortStages = [
+      { $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } },
+      { $sort: { IdProductoFloat: 1 } }
+    ];
     if (search) {
-      if (!esUsuarioPrivilegiado) {
-        // Si es un invitado buscando, nos aseguramos de que la búsqueda sea SIEMPRE sobre estados públicos.
-        query.Estado = { $in: estadosPublicos };
-      }
+      ({ sortStages } = applySemanticSearch(query, search, req.user));
     }
 
     // ✅ Filtro por rango de precio
@@ -96,17 +92,7 @@ export const obtenerProductos = async (req, res) => {
       {
         $facet: {
           productos: [
-            ...(search
-              ? [
-                  // ✅ CORRECCIÓN: Usar $addFields es más seguro para añadir el score sin perder campos.
-                  { $addFields: { score: { $meta: "textScore" } } },
-                  { $sort: { score: -1 } }
-                ]
-              : [
-                  { $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } },
-                  { $sort: { IdProductoFloat: 1 } }
-                ]
-            ),
+            ...sortStages,
             { $skip: (safePage - 1) * safeLimit },
             { $limit: safeLimit },
           ],
