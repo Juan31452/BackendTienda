@@ -48,19 +48,33 @@ export const obtenerProductos = async (req, res) => {
       query.Categoria = categoria;
     }
 
-    // --- LÓGICA DE ESTADO BASADA EN ROL (SOLUCIÓN DEFINITIVA) ---
-    const esAdmin = req.user && req.user.role === 'admin';
+    // --- LÓGICA DE ESTADO REESTRUCTURADA Y CORREGIDA ---
+    const esUsuarioPrivilegiado = req.user && (req.user.role === 'admin' || req.user.role === 'vendedor');
+    const estadosPublicos = ['Disponible', 'Nuevo', 'Oferta'];
 
-    if (esAdmin) {
-      // Si el usuario es 'admin', se respeta el filtro de estado si se proporciona.
-      // Si no se envía, no se filtra por estado, permitiendo ver todos los productos.
+    // 1. Lógica base (para la vista principal, sin búsqueda)
+    if (esUsuarioPrivilegiado) {
+      // Admin/Vendedor: Si especifican un estado, se usa. Si no, ven todos (sin filtro de estado).
       if (estado && estado !== 'undefined') {
         query.Estado = estado;
       }
     } else {
-      // Si el usuario NO es 'admin' (invitado, cliente, etc.),
-      // se fuerza a que solo vea los productos en estados públicos.
-      query.Estado = { $in: ['Disponible', 'Nuevo', 'Oferta'] };
+      // Invitados: Siempre ven solo los estados públicos por defecto.
+      // Si el invitado especifica un estado y es público, lo respetamos.
+      if (estado && estadosPublicos.includes(estado)) {
+        query.Estado = estado;
+      } else {
+        // Si no, o si el estado no es válido, mostramos todos los públicos.
+        query.Estado = { $in: estadosPublicos };
+      }
+    }
+
+    // 2. Lógica para la Búsqueda Semántica (sobrescribe la lógica base si es necesario)
+    if (search) {
+      if (!esUsuarioPrivilegiado) {
+        // Si es un invitado buscando, nos aseguramos de que la búsqueda sea SIEMPRE sobre estados públicos.
+        query.Estado = { $in: estadosPublicos };
+      }
     }
 
     // ✅ Filtro por rango de precio

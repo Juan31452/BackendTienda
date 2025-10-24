@@ -27,5 +27,12 @@ export const rutas = [
     metodo: 'get',
     ruta: '/api/health',
     controlador: (req, res) => res.status(200).send('Server is healthy and awake!'),
+  },
+
+  {
+    metodo: 'use',
+    ruta: '/api/assistant',
+    controlador: (await import('./assistantRoutes.js')).default,  // <- Aquí se monta el router del asistente
   }
+
 ];

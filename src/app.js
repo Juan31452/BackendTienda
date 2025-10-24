@@ -38,6 +38,7 @@ const PORT = process.env.PORT || 4000;
     app.use('/api/productos', productsRoutes);
     app.use('/api/users', userRoutes);
     app.get('/api/health', (req, res) => res.status(200).send('Server is healthy!'));
+    app.use('/api/assistant', (await import('./routes/assistantRoutes.js')).default);
 
     // Iniciar el servidor
     app.listen(PORT, () => {
