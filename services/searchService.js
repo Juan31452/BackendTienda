@@ -15,13 +15,10 @@ export const applySemanticSearch = (query, searchTerm, user) => {
   // 1. Añadir el filtro de texto a la consulta principal.
   query.$text = { $search: searchTerm };
 
-  // 2. Restringir la búsqueda a estados públicos para usuarios no privilegiados.
-  const esUsuarioPrivilegiado = user && (user.role === 'admin' || user.role === 'vendedor');
-  if (!esUsuarioPrivilegiado) {
-    query.Estado = { $in: ['Disponible', 'Nuevo', 'Oferta'] };
-  }
+  // 2. ✅ CORRECCIÓN DEFINITIVA: La búsqueda semántica SIEMPRE debe mostrar solo productos comercializables.
+  // Este filtro se aplica para TODOS los usuarios, garantizando consistencia en los resultados de búsqueda.
+  query.Estado = { $in: ['Disponible', 'Nuevo', 'Oferta'] };
 
-  // 3. Devolver las etapas del pipeline para ordenar por relevancia (score).
   return {
     sortStages: [
       { $addFields: { score: { $meta: 'textScore' } } },
