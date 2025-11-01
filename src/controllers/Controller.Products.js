@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Producto from '../models/Model.Products.js';
+import { getFromCache, setInCache } from '../../services/cacheService.js'; // 1. Importamos el servicio de caché
 import { applySemanticSearch } from '../../services/searchService.js';
 
 /**
@@ -28,6 +29,17 @@ export const obtenerProductos = async (req, res) => {
   try {
     let { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio, search } = req.query;
     console.log('Usuario autenticado:', req.user);
+
+    // 2. Creamos una clave única para la caché a partir de los query params y el rol del usuario.
+    // El rol es importante porque un admin ve más cosas que un invitado con los mismos filtros.
+    const userRole = req.user ? req.user.role : 'invitado';
+    const cacheKey = `productos:${userRole}:${JSON.stringify(req.query)}`;
+
+    // 3. Intentamos obtener el resultado desde la caché
+    const cachedResult = getFromCache(cacheKey);
+    if (cachedResult) {
+      return res.status(200).json(cachedResult);
+    }
  
     // 🛡 Validaciones seguras de números
     const pageNum  = Number(page);
@@ -125,7 +137,8 @@ export const obtenerProductos = async (req, res) => {
       return productoObjeto;
     });
 
-    res.status(200).json({
+    // 4. Antes de enviar la respuesta, la guardamos en la caché
+    const responsePayload = {
       success: true,
       productos: productosFinales,
       pagination: {
@@ -134,7 +147,10 @@ export const obtenerProductos = async (req, res) => {
         currentPage: safePage,
         itemsPerPage: safeLimit
       }
-    });
+    };
+
+    setInCache(cacheKey, responsePayload);
+    res.status(200).json(responsePayload);
 
   } catch (error) {
     console.error('Error al obtener productos:', error);
