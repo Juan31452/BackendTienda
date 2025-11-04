@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import Producto from '../models/Model.Products.js';
-import { getFromCache, setInCache } from '../../services/cacheService.js'; // 1. Importamos el servicio de caché
+import { getFromCache, setInCache, invalidateProductsCache} from '../../services/cacheService.js'; // 1. Importamos el servicio de caché
 import { applySemanticSearch } from '../../services/searchService.js';
 
 /**
