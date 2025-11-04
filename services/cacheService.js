@@ -1,36 +1,39 @@
-// services/cacheService.js (o un nombre similar)
+import NodeCache from 'node-cache';
 
-// Usamos un Map para la caché. Las claves serán strings y los valores, los resultados de la API.
-const cache = new Map();
-
-// Tiempo de vida de la caché en milisegundos (ej: 5 minutos)
-const CACHE_TTL = 5 * 60 * 1000; 
+// Creamos una instancia de caché.
+// stdTTL: Tiempo de vida estándar en segundos para cada entrada. 300s = 5 minutos.
+// checkperiod: Cada cuántos segundos se revisan y eliminan las entradas expiradas.
+const cache = new NodeCache({ stdTTL: 300, checkperiod: 120 });
 
 /**
- * Obtiene un valor de la caché si existe y no ha expirado.
- * @param {string} key - La clave única para la entrada de caché.
- * @returns {any | null} - El valor cacheado o null si no existe o ha expirado.
+ * Obtiene un valor de la caché.
+ * @param {string} key - La clave única para el dato.
+ * @returns {any | undefined} El dato cacheado o undefined si no existe.
  */
 export const getFromCache = (key) => {
-  const cached = cache.get(key);
-  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
-    console.log(`[CACHE] HIT para la clave: ${key}`);
-    return cached.data;
-  }
-  console.log(`[CACHE] MISS para la clave: ${key}`);
-  cache.delete(key); // Limpiamos la entrada expirada
-  return null;
+  const data = cache.get(key);
+  if (data) console.log(`[CACHE] HIT para la clave: ${key}`);
+  else console.log(`[CACHE] MISS para la clave: ${key}`);
+  return data;
 };
 
 /**
- * Guarda un valor en la caché con una marca de tiempo.
- * @param {string} key - La clave única para la entrada de caché.
- * @param {any} data - Los datos a cachear.
+ * Guarda un valor en la caché.
+ * @param {string} key - La clave única para el dato.
+ * @param {any} value - El valor a cachear.
  */
-export const setInCache = (key, data) => {
+export const setInCache = (key, value) => {
   console.log(`[CACHE] SET para la clave: ${key}`);
-  cache.set(key, {
-    data,
-    timestamp: Date.now()
-  });
+  cache.set(key, value);
+};
+
+/**
+ * Invalida todas las entradas de caché que comienzan con el prefijo "productos:".
+ */
+export const invalidateProductsCache = () => {
+  const productKeys = cache.keys().filter(k => k.startsWith('productos:'));
+  if (productKeys.length > 0) {
+    cache.del(productKeys);
+    console.log(`[Cache] Invalidadas ${productKeys.length} entradas de productos.`);
+  }
 };
