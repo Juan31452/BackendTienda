@@ -194,6 +194,7 @@ export const crearProducto = async (req, res) => {
 
     const nuevoProducto = new Producto(req.body);
     const productoGuardado = await nuevoProducto.save();
+    invalidateProductsCache(); // Invalidamos la caché de productos
     
     successResponse(res, productoGuardado, 201);
   } catch (error) {
@@ -239,6 +240,7 @@ export const crearProductos = async (req, res) => {
     try {
       const productosGuardados = await Producto.insertMany(productos, { session });
       await session.commitTransaction();
+      invalidateProductsCache(); // Invalidamos la caché de productos
       successResponse(res, productosGuardados, 201);
     } catch (error) {
       await session.abortTransaction();
@@ -273,6 +275,7 @@ export const actualizarProducto = async (req, res) => {
     if (!productoActualizado) {
       return errorResponse(res, 'Producto no encontrado', 404);
     }
+    invalidateProductsCache(); // Invalidamos la caché de productos
     
     successResponse(res, productoActualizado);
   } catch (error) {
@@ -289,6 +292,7 @@ export const eliminarProducto = async (req, res) => {
     if (!productoEliminado) {
       return errorResponse(res, 'Producto no encontrado', 404);
     }
+    invalidateProductsCache(); // Invalidamos la caché de productos
     
     successResponse(res, { 
       message: 'Producto eliminado con éxito',
