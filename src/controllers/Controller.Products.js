@@ -27,7 +27,7 @@ const errorResponse = (res, error, status = 500, details = null) => {
 // Obtener todos los productos con paginación
 export const obtenerProductos = async (req, res) => {
   try {
-    let { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio, search } = req.query;
+    let { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio, search, sort } = req.query;
     console.log('Usuario autenticado:', req.user);
 
     // 2. Creamos una clave única para la caché a partir de los query params y el rol del usuario.
@@ -76,13 +76,28 @@ export const obtenerProductos = async (req, res) => {
       }
     }
 
-    // ✅ Lógica de Búsqueda Semántica (extraída a un servicio)
-    let sortStages = [
-      { $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } },
-      { $sort: { IdProductoFloat: 1 } }
-    ];
+    // --- ✅ Lógica de Ordenación Flexible ---
+    let sortStages = [];
     if (search) {
+      // Si hay una búsqueda, el servicio de búsqueda puede definir su propia ordenación (ej. por relevancia)
       ({ sortStages } = applySemanticSearch(query, search, req.user));
+    }
+
+    // Si la búsqueda no definió una ordenación, o no hay búsqueda, aplicamos la ordenación del usuario
+    if (sortStages.length === 0) {
+      switch (sort) {
+        case 'newest': // Más nuevos primero
+          sortStages.push({ $sort: { createdAt: -1 } });
+          break;
+        case 'oldest': // Más antiguos primero
+          sortStages.push({ $sort: { createdAt: 1 } });
+          break;
+        case 'id_desc': // Por IdProducto descendente
+          sortStages.push({ $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } }, { $sort: { IdProductoFloat: -1 } });
+          break;
+        default: // Orden por defecto: IdProducto ascendente
+          sortStages.push({ $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } }, { $sort: { IdProductoFloat: 1 } });
+      }
     }
 
     // ✅ Filtro por rango de precio
