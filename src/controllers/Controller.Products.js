@@ -141,15 +141,16 @@ export const obtenerProductos = async (req, res) => {
     // ✅ SOLUCIÓN DEFINITIVA: Mapeamos los productos para construir la respuesta final.
     // Esto nos da control total sobre los campos que se envían al cliente.
     const productosFinales = productos.map(p => {
-      // 1. Siempre convertimos a un objeto plano para consistencia.
-      const productoObjeto = p.toObject ? p.toObject() : p;
+      // Los resultados de aggregate ya son objetos planos, no necesitamos .toObject()
+      const productoFinal = { ...p }; // Creamos una copia para no modificar el original
 
-      // 2. Si el usuario no puede ver precios, eliminamos la propiedad del objeto.
+      // Si el usuario NO tiene permiso para ver precios, eliminamos la propiedad.
+      // Esta es la lógica correcta: ocultar por defecto, mostrar por condición.
       if (!puedeVerPrecios) {
-        delete productoObjeto.Precio;
+        delete productoFinal.Precio;
       }
-      // 3. Devolvemos el objeto modificado (o el original si tiene permisos).
-      return productoObjeto;
+      // Devolvemos el objeto modificado (o el original si tiene permisos).
+      return productoFinal;
     });
 
     // 4. Antes de enviar la respuesta, la guardamos en la caché
