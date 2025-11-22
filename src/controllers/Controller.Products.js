@@ -30,10 +30,14 @@ export const obtenerProductos = async (req, res) => {
     let { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio, search, sort } = req.query;
     console.log('Usuario autenticado:', req.user);
 
-    // 2. Creamos una clave única para la caché a partir de los query params y el rol del usuario.
-    // El rol es importante porque un admin ve más cosas que un invitado con los mismos filtros.
+    // 2. Creamos una clave de caché segura.
+    // La fuente de verdad para el rol es req.user (del token), no un query param.
     const userRole = req.user ? req.user.role : 'invitado';
-    const cacheKey = `productos:${userRole}:${JSON.stringify(req.query)}`;
+    
+    // Creamos una copia de los query params y eliminamos 'role' si existe, para evitar inconsistencias en la caché.
+    const queryForCache = { ...req.query };
+    delete queryForCache.role;
+    const cacheKey = `productos:${userRole}:${JSON.stringify(queryForCache)}`;
 
     // 3. Intentamos obtener el resultado desde la caché
     const cachedResult = getFromCache(cacheKey);
