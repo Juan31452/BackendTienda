@@ -89,18 +89,13 @@ export const obtenerProductos = async (req, res) => {
 
     // Si la búsqueda no definió una ordenación, o no hay búsqueda, aplicamos la ordenación del usuario
     if (sortStages.length === 0) {
+      // Lógica de ordenación simplificada a 'newest' y 'oldest'
       switch (sort) {
-        case 'newest': // Más nuevos primero
-          sortStages.push({ $sort: { createdAt: -1 } });
-          break;
         case 'oldest': // Más antiguos primero
           sortStages.push({ $sort: { createdAt: 1 } });
           break;
-        case 'id_desc': // Por IdProducto descendente
-          sortStages.push({ $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } }, { $sort: { IdProductoFloat: -1 } });
-          break;
-        default: // Orden por defecto: IdProducto ascendente
-          sortStages.push({ $addFields: { IdProductoFloat: { $toDouble: "$IdProducto" } } }, { $sort: { IdProductoFloat: 1 } });
+        default: // 'newest' o cualquier otro valor será el orden por defecto
+          sortStages.push({ $sort: { createdAt: -1 } });
       }
     }
 
