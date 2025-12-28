@@ -1,50 +1,15 @@
 import mongoose from 'mongoose';
 import Producto from '../models/Model.Products.js';
-import { getFromCache, setInCache, invalidateProductsCache} from '../../services/cacheService.js'; // 1. Importamos el servicio de caché
+import { buildProductQuery } from '../../utilities/filter.utils.js'; // filtros reutilizables
 import { applySemanticSearch } from '../../services/searchService.js';
-
-/**
- * Formato estándar de respuesta exitosa
- */
-const successResponse = (res, data, status = 200) => {
-  res.status(status).json({
-    success: true,
-    data
-  });
-};
-
-/**
- * Formato estándar de respuesta de error
- */
-const errorResponse = (res, error, status = 500, details = null) => {
-  res.status(status).json({
-    success: false,
-    error,
-    ...(details && { details })
-  });
-};
+import { successResponse, errorResponse } from '../../utilities/respuestas.js';
 
 // Obtener todos los productos con paginación
 export const obtenerProductos = async (req, res) => {
   try {
-    let { page = 1, limit = 100, categoria, estado, minPrecio, maxPrecio, search, sort } = req.query;
+    let { page = 1, limit = 100, search, sort } = req.query;
     console.log('Usuario autenticado:', req.user);
 
-    // 2. Creamos una clave de caché segura.
-    // La fuente de verdad para el rol es req.user (del token), no un query param.
-    const userRole = req.user ? req.user.role : 'invitado';
-    
-    // Creamos una copia de los query params y eliminamos 'role' si existe, para evitar inconsistencias en la caché.
-    const queryForCache = { ...req.query };
-    delete queryForCache.role;
-    const cacheKey = `productos:${userRole}:${JSON.stringify(queryForCache)}`;
-
-    // 3. Intentamos obtener el resultado desde la caché
-    const cachedResult = getFromCache(cacheKey);
-    if (cachedResult) {
-      return res.status(200).json(cachedResult);
-    }
- 
     // 🛡 Validaciones seguras de números
     const pageNum  = Number(page);
     const limitNum = Number(limit);
@@ -52,33 +17,8 @@ export const obtenerProductos = async (req, res) => {
     const safePage  = Number.isInteger(pageNum) && pageNum > 0 ? pageNum : 1;
     const safeLimit = Number.isInteger(limitNum) && limitNum > 0 ? limitNum : 100;
 
-    const query = {};
-
-    // ✅ Filtros seguros
-    if (categoria && categoria !== 'undefined') {
-      query.Categoria = categoria;
-    }
-
-    // --- LÓGICA DE ESTADO REESTRUCTURADA Y CORREGIDA ---
-    const esUsuarioPrivilegiado = req.user && (req.user.role === 'admin' || req.user.role === 'vendedor');
-    const estadosPublicos = ['Disponible', 'Nuevo', 'Oferta'];
-
-    // 1. Lógica base (para la vista principal, sin búsqueda)
-    if (esUsuarioPrivilegiado) {
-      // Admin/Vendedor: Si especifican un estado, se usa. Si no, ven todos (sin filtro de estado).
-      if (estado && estado !== 'undefined') {
-        query.Estado = estado;
-      }
-    } else {
-      // Invitados: Siempre ven solo los estados públicos por defecto.
-      // Si el invitado especifica un estado y es público, lo respetamos.
-      if (estado && estadosPublicos.includes(estado)) {
-        query.Estado = estado;
-      } else {
-        // Si no, o si el estado no es válido, mostramos todos los públicos.
-        query.Estado = { $in: estadosPublicos };
-      }
-    }
+    // Construimos el objeto de consulta usando filteros reutilizables
+    const query = buildProductQuery(req.query, req.user);
 
     // --- ✅ Lógica de Ordenación Flexible ---
     let sortStages = [];
@@ -97,13 +37,6 @@ export const obtenerProductos = async (req, res) => {
         default: // 'newest' o cualquier otro valor será el orden por defecto
           sortStages.push({ $sort: { createdAt: -1 } });
       }
-    }
-
-    // ✅ Filtro por rango de precio
-    if (minPrecio || maxPrecio) {
-      query.Precio = {};
-      if (minPrecio) query.Precio.$gte = Number(minPrecio);
-      if (maxPrecio) query.Precio.$lte = Number(maxPrecio);
     }
 
     // Determinar si el usuario está autorizado para ver precios
@@ -152,7 +85,6 @@ export const obtenerProductos = async (req, res) => {
       return productoFinal;
     });
 
-    // 4. Antes de enviar la respuesta, la guardamos en la caché
     const responsePayload = {
       success: true,
       productos: productosFinales,
@@ -164,7 +96,6 @@ export const obtenerProductos = async (req, res) => {
       }
     };
 
-    setInCache(cacheKey, responsePayload);
     res.status(200).json(responsePayload);
 
   } catch (error) {
@@ -174,6 +105,46 @@ export const obtenerProductos = async (req, res) => {
       message: 'Error al obtener los productos',
       error: error.message
     });
+  }
+};
+
+/**
+ * Endpoint de utilidad para administradores.
+ * Asigna un vendedor a todos los productos que no tengan uno.
+ * Busca al primer usuario con rol 'vendedor' y lo asigna.
+ */
+export const asignarVendedorGlobal = async (req, res) => {
+  // 1. Verificación de permisos: Solo para administradores.
+  if (req.user.role !== 'admin') {
+    return errorResponse(res, 'Acción no autorizada. Se requiere rol de administrador.', 403);
+  }
+
+  try {
+    // 2. Buscar al usuario vendedor.
+    const vendedor = await mongoose.model('User').findOne({ role: 'vendedor' });
+
+    if (!vendedor) {
+      return errorResponse(res, 'No se encontró ningún usuario con el rol "vendedor" en la base de datos.', 404);
+    }
+
+    // 3. Actualizar todos los productos donde el campo 'vendedor' no exista.
+    // Esto evita sobrescribir productos que ya tengan un vendedor asignado.
+    const resultado = await Producto.updateMany(
+      { vendedor: { $exists: false } }, // El filtro
+      { $set: { vendedor: vendedor._id } } // La actualización
+    );
+
+    // 5. Enviar una respuesta exitosa.
+    successResponse(res, {
+      message: `Operación completada. Se asignó el vendedor "${vendedor.name}" a ${resultado.modifiedCount} productos.`,
+      vendedorAsignado: {
+        id: vendedor._id,
+        name: vendedor.name
+      }
+    });
+
+  } catch (error) {
+    errorResponse(res, 'Error durante la asignación masiva de vendedor.', 500, error.message);
   }
 };
 
@@ -195,22 +166,38 @@ export const obtenerProductoPorId = async (req, res) => {
 // Crear un nuevo producto
 export const crearProducto = async (req, res) => {
   try {
-    
-    const { IdProducto, Descripcion, Precio } = req.body;
+    const { IdProducto, Descripcion, Precio, vendedor: vendedorIdFromBody } = req.body;
+    const { id: solicitanteId, role: solicitanteRole } = req.user;
     
     if (!IdProducto || !Descripcion || !Precio) {
       return errorResponse(res, 'IdProducto, Descripcion y Precio son campos requeridos', 400);
+    }
+
+    let finalVendedorId;
+
+    if (solicitanteRole === 'admin') {
+      if (!vendedorIdFromBody) {
+        return errorResponse(res, 'Como administrador, debe especificar el ID del vendedor en el campo "vendedor".', 400);
+      }
+      // Aquí podrías añadir una validación para asegurar que el ID del vendedor existe en la DB.
+      finalVendedorId = vendedorIdFromBody;
+    } else if (solicitanteRole === 'vendedor') {
+      finalVendedorId = solicitanteId; // El vendedor se asigna a sí mismo.
+    } else {
+      return errorResponse(res, 'No tiene permisos para crear productos.', 403);
     }
 
     const existeProducto = await Producto.findOne({ IdProducto });
     if (existeProducto) {
       return errorResponse(res, 'Ya existe un producto con este IdProducto', 400);
     }
+    const nuevoProducto = new Producto({
+      ...req.body,
+      vendedor: finalVendedorId
+    });
 
-    const nuevoProducto = new Producto(req.body);
     const productoGuardado = await nuevoProducto.save();
-    invalidateProductsCache(); // Invalidamos la caché de productos
-    
+
     successResponse(res, productoGuardado, 201);
   } catch (error) {
     errorResponse(res, 'Error al crear el producto', 400, error.message);
@@ -220,16 +207,33 @@ export const crearProducto = async (req, res) => {
 // Crear múltiples productos
 export const crearProductos = async (req, res) => {
   try {
-    
-    const productos = req.body;
+    const { id: solicitanteId, role: solicitanteRole } = req.user;
+    let productos = req.body;
 
+    if (solicitanteRole === 'admin') {
+      // El admin debe especificar el vendedor en CADA producto del array.
+      // Verificamos si algún producto no tiene el campo 'vendedor'.
+      const algunProductoSinVendedor = productos.some(p => !p.vendedor);
+      if (algunProductoSinVendedor) {
+        return errorResponse(res, 'Como administrador, cada producto en el array debe tener un campo "vendedor" con el ID correspondiente.', 400);
+      }
+      // Si todos tienen vendedor, la data ya es correcta.
+    } else if (solicitanteRole === 'vendedor') {
+      // Si es un vendedor, asignamos su ID a todos los productos, ignorando cualquier 'vendedor' que venga en el body.
+      productos = productos.map(p => ({
+        ...p,
+        vendedor: solicitanteId
+      }));
+    } else {
+      return errorResponse(res, 'No tiene permisos para crear productos.', 403);
+    }
+    
     if (!Array.isArray(productos)) {  // Corrección aquí
       return errorResponse(res, 'El body debe ser un array de productos', 400);
     }
     if (productos.length === 0) {
       return errorResponse(res, 'El array de productos está vacío', 400);
     }
-
 
     const ids = productos.map(p => p.IdProducto);
     const idsUnicos = [...new Set(ids)];
@@ -255,7 +259,6 @@ export const crearProductos = async (req, res) => {
     try {
       const productosGuardados = await Producto.insertMany(productos, { session });
       await session.commitTransaction();
-      invalidateProductsCache(); // Invalidamos la caché de productos
       successResponse(res, productosGuardados, 201);
     } catch (error) {
       await session.abortTransaction();
@@ -290,7 +293,6 @@ export const actualizarProducto = async (req, res) => {
     if (!productoActualizado) {
       return errorResponse(res, 'Producto no encontrado', 404);
     }
-    invalidateProductsCache(); // Invalidamos la caché de productos
     
     successResponse(res, productoActualizado);
   } catch (error) {
@@ -307,7 +309,6 @@ export const eliminarProducto = async (req, res) => {
     if (!productoEliminado) {
       return errorResponse(res, 'Producto no encontrado', 404);
     }
-    invalidateProductsCache(); // Invalidamos la caché de productos
     
     successResponse(res, { 
       message: 'Producto eliminado con éxito',

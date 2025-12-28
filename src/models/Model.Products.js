@@ -9,7 +9,12 @@ const productoSchema = new mongoose.Schema({
   IdProducto: { type: String, required: true, unique: true }, // Se mantiene como String por su formato "10.23"
   Imagen: { type: String, required: true },
   Categoria: { type: String, required: true },
-  Estado: { type: String, required: true }
+  Estado: { type: String, required: true },
+  vendedor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  }
 }, { timestamps: true });
 
 // ✅ Índice de texto para búsqueda semántica (Búsqueda Inteligente)

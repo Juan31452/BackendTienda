@@ -7,7 +7,9 @@ import {
   actualizarProducto, 
   eliminarProducto,
   obtenerEstadisticasProductos,
-  getTotalMes 
+  getTotalMes,
+  asignarVendedorGlobal
+
 } from '../controllers/Controller.Products.js';
 import { verifyToken } from '../middlewares/verifyToken.js';
 import { optionalVerifyToken } from '../middlewares/optionalVerifyToken.js';
@@ -25,6 +27,7 @@ router.get('/', optionalVerifyToken, obtenerProductos); // Ruta pública, el tok
 // Solo 'admin'  pueden crear, actualizar o eliminar productos.
 router.post('/', verifyToken, requireRole('admin'), crearProducto);
 router.post('/crear-multiples', verifyToken, requireRole('admin'), crearProductos);
+router.post('/asignar-vendedor-global', verifyToken, requireRole('admin'), asignarVendedorGlobal);
 
 // Rutas para estadísticas y totales, podrían ser solo para roles autorizados.
 router.get('/estadisticas', verifyToken, requireRole('admin', 'vendedor'), obtenerEstadisticasProductos);
