@@ -20,6 +20,17 @@ export const obtenerProductos = async (req, res) => {
     // Construimos el objeto de consulta usando filteros reutilizables
     const query = buildProductQuery(req.query, req.user);
 
+    // --- 🔒 Filtrado por Rol: Vendedor solo ve lo suyo ---
+    if (req.user) {
+      if (req.user.role === 'vendedor') {
+        query.vendedor = new mongoose.Types.ObjectId(req.user.id);
+      } else if (req.user.role === 'admin' && req.query.vendedor) {
+        if (mongoose.Types.ObjectId.isValid(req.query.vendedor)) {
+          query.vendedor = new mongoose.Types.ObjectId(req.query.vendedor);
+        }
+      }
+    }
+
     // --- ✅ Lógica de Ordenación Flexible ---
     let sortStages = [];
     if (search) {
@@ -324,11 +335,26 @@ export const obtenerEstadisticasProductos = async (req, res) => {
   try {
     const { search } = req.query;
     const pipeline = [];
+    const matchQuery = {};
 
-    // 1. Si hay un término de búsqueda, lo añadimos como primera etapa del pipeline.
-    // Esto filtra los documentos ANTES de la agrupación.
+    // --- 🔒 Filtrado por Rol: Vendedor solo ve lo suyo ---
+    if (req.user) {
+      if (req.user.role === 'vendedor') {
+        matchQuery.vendedor = new mongoose.Types.ObjectId(req.user.id);
+      } else if (req.user.role === 'admin' && req.query.vendedor) {
+        if (mongoose.Types.ObjectId.isValid(req.query.vendedor)) {
+          matchQuery.vendedor = new mongoose.Types.ObjectId(req.query.vendedor);
+        }
+      }
+    }
+
+    // 1. Si hay un término de búsqueda, lo añadimos al filtro.
     if (search) {
-      pipeline.push({ $match: { $text: { $search: search } } });
+      matchQuery.$text = { $search: search };
+    }
+
+    if (Object.keys(matchQuery).length > 0) {
+      pipeline.push({ $match: matchQuery });
     }
 
     // 2. Añadimos la etapa de agrupación al pipeline.
