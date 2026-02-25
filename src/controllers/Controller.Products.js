@@ -50,11 +50,6 @@ export const obtenerProductos = async (req, res) => {
       }
     }
 
-    // Determinar si el usuario está autorizado para ver precios
-    const puedeVerPrecios = req.user && (req.user.role === 'admin' || req.user.role === 'vendedor');
-    // CORRECCIÓN: El token JWT contiene 'email', no 'username'.
-    // Usamos 'email' para identificar al usuario en el log.
-    console.log(`Usuario ${req.user ? req.user.email : 'anónimo'} - Puede ver precios: ${puedeVerPrecios}`);
     
     // Construcción del pipeline de agregación
     const pipeline = [
@@ -83,18 +78,7 @@ export const obtenerProductos = async (req, res) => {
 
     // ✅ SOLUCIÓN DEFINITIVA: Mapeamos los productos para construir la respuesta final.
     // Esto nos da control total sobre los campos que se envían al cliente.
-    const productosFinales = productos.map(p => {
-      // Los resultados de aggregate ya son objetos planos, no necesitamos .toObject()
-      const productoFinal = { ...p }; // Creamos una copia para no modificar el original
-
-      // Si el usuario NO tiene permiso para ver precios, eliminamos la propiedad.
-      // Esta es la lógica correcta: ocultar por defecto, mostrar por condición.
-      if (!puedeVerPrecios) {
-        delete productoFinal.Precio;
-      }
-      // Devolvemos el objeto modificado (o el original si tiene permisos).
-      return productoFinal;
-    });
+    const productosFinales = productos;
 
     const responsePayload = {
       success: true,
