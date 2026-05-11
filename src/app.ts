@@ -18,6 +18,12 @@ const PORT = process.env.PORT || 4000;
 
     const app = express();
 
+    // Middleware de depuración: Ver todas las peticiones que llegan
+    app.use((req, _res, next) => {
+      console.log(`📡 Solicitud recibida: ${req.method} ${req.url}`);
+      next();
+    });
+
     // Middlewares
     app.use(cors({
       origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean | string) => void) => {

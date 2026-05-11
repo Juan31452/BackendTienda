@@ -35,14 +35,6 @@ export default class Servidor {
       },
       credentials: true // <- necesario si usas cookies/autenticación
     }));
-
-    // Middleware para manejo de errores (centralizado)
-    this.app.use((err, req, res, next) => {
-      console.error('Error en la solicitud:', err.message);
-      res.status(err.status || 500).json({
-        error: err.message || 'Error interno del servidor',
-      });
-    });
   }
 
   agregarMiddleware(middleware) {
@@ -74,6 +66,15 @@ export default class Servidor {
     });
   }
   
+  conectarManejadorErrores() {
+    this.app.use((err, req, res, next) => {
+      console.error('❌ Error detectado:', err.message);
+      res.status(err.status || 500).json({
+        error: err.message || 'Error interno del servidor',
+      });
+    });
+  }
+
   iniciar() {
     this.server = this.app.listen(this.puerto, () => {
       console.log(`🚀 Servidor corriendo en http://localhost:${this.puerto}`);
