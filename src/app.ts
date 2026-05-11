@@ -14,7 +14,9 @@ const PORT = process.env.PORT || 4000;
 
 (async () => {
   try {
+    console.log('⏳ Intentando conectar a MongoDB...');
     await mongoInstance.connect(true); // true para Atlas, false para Local
+    console.log('✅ Conexión a MongoDB exitosa');
 
     const app = express();
 
