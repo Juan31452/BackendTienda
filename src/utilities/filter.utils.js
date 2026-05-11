@@ -7,7 +7,7 @@ import mongoose from 'mongoose';
  * @returns {object} El objeto de consulta (`query`) para ser usado en Mongoose/MongoDB.
  */
 export const buildProductQuery = (queryParams, user) => {
-  const { categoria, estado, minPrecio, maxPrecio, vendedorId } = queryParams;
+  const { categoria, estado, minPrecio, maxPrecio, vendedor } = queryParams;
   const query = {};
 
   // --- LÓGICA DE FILTRADO POR VENDEDOR ---
@@ -15,9 +15,9 @@ export const buildProductQuery = (queryParams, user) => {
     if (user.role === 'vendedor') {
       // Si es un vendedor, SIEMPRE filtra por su propio ID.
       query.vendedor = new mongoose.Types.ObjectId(user.id);
-    } else if (user.role === 'admin' && vendedorId) {
-      // Si es un admin y proporciona un `vendedorId`, filtra por ese vendedor.
-      query.vendedor = new mongoose.Types.ObjectId(vendedorId);
+    } else if (user.role === 'admin' && vendedor && mongoose.Types.ObjectId.isValid(vendedor)) {
+      // Si es un admin y proporciona un `vendedor`, filtra por ese vendedor si es válido.
+      query.vendedor = new mongoose.Types.ObjectId(vendedor);
     }
   }
 

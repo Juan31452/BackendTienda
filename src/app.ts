@@ -1,11 +1,11 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import mongoInstance from './config/database.js';
-import productsRoutes from './routes/ProductsRoutes.js';
-import userRoutes from './routes/UserRoutes.js';
+import mongoInstance from './config/database.ts';
+import productsRoutes from './routes/ProductsRoutes.ts';
+import userRoutes from './routes/UserRoutes.ts';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -20,7 +20,7 @@ const PORT = process.env.PORT || 4000;
 
     // Middlewares
     app.use(cors({
-      origin: (origin, callback) => {
+      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean | string) => void) => {
         const allowedOrigins = ['http://localhost:5173', 'https://gilded-tanuki-8b07e6.netlify.app'];
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
@@ -37,8 +37,13 @@ const PORT = process.env.PORT || 4000;
     // Rutas de la API
     app.use('/api/productos', productsRoutes);
     app.use('/api/users', userRoutes);
-    app.get('/api/health', (req, res) => res.status(200).send('Server is healthy!'));
-    app.use('/api/assistant', (await import('./routes/assistantRoutes.js')).default);
+    
+    app.get('/api/health', (_req: Request, res: Response) => {
+      res.status(200).send('Server is healthy!');
+    });
+
+    const assistant = await import('./routes/assistantRoutes.ts');
+    app.use('/api/assistant', assistant.default);
 
     // Iniciar el servidor
     app.listen(PORT, () => {

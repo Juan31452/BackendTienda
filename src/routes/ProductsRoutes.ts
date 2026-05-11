@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Router } from 'express';
 import { 
   obtenerProductos, 
   obtenerProductoPorId,
@@ -10,12 +10,13 @@ import {
   getTotalMes,
   asignarVendedorGlobal
 
-} from '../controllers/Controller.Products.js';
-import { verifyToken } from '../middlewares/verifyToken.js';
-import { optionalVerifyToken } from '../middlewares/optionalVerifyToken.js';
-import { requireRole } from '../middlewares/requireRole.js';
+} from '../controllers/Controller.Products.ts';
+import { successResponse, errorResponse } from '../utilities/respuestas.ts';
+import { verifyToken } from '../middlewares/verifyToken.ts';
+import { optionalVerifyToken } from '../middlewares/optionalVerifyToken.ts';
+import { requireRole } from '../middlewares/requireRole.ts';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // Definir las rutas para productos
 

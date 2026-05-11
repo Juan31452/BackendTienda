@@ -1,7 +1,7 @@
-import express from 'express';
-import { handleChatMessage } from '../controllers/assistantController.js';
+import express, { Router } from 'express';
+import { handleChatMessage } from '../controllers/assistantController.ts';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 // Definimos la ruta POST para el chat.
 // Cuando una petición POST llegue a /api/assistant/chat, se ejecutará handleChatMessage.

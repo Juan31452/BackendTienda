@@ -1,3 +1,5 @@
+import { Request, Response } from 'express';
+
 // import { GoogleGenAI } from "@google/genai";
 // import dotenv from "dotenv";
 // dotenv.config();
@@ -8,8 +10,8 @@
 //
 // const ai = new GoogleGenAI({});
 
-export const handleChatMessage = async (req, res) => {
+export const handleChatMessage = async (req: Request, res: Response): Promise<void> => {
   // --- Asistente Desactivado ---
   // Se devuelve un código 503 (Servicio no disponible) para indicar que esta funcionalidad está desactivada.
-  return res.status(503).json({ error: "El asistente virtual se encuentra temporalmente desactivado." });
+  res.status(503).json({ error: "El asistente virtual se encuentra temporalmente desactivado." });
 };

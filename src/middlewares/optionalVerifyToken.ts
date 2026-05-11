@@ -1,5 +1,7 @@
+import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import { AuthenticatedRequest, UserPayload } from '../types/index.ts';
 
 dotenv.config();
 
@@ -9,7 +11,7 @@ dotenv.config();
  * Si hay un token y es válido, añade los datos del usuario a `req.user`.
  * Si hay un token y NO es válido, devuelve un error.
  */
-export const optionalVerifyToken = (req, res, next) => {
+export const optionalVerifyToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers['authorization'];
 
@@ -26,21 +28,19 @@ export const optionalVerifyToken = (req, res, next) => {
     }
 
     const SECRET = process.env.TOKEN_SECRET;
+    if (!SECRET) {
+      throw new Error('TOKEN_SECRET is not defined in environment variables.');
+    }
 
     jwt.verify(token, SECRET, (err, decoded) => {
-      // Si el token es inválido o ha expirado, SÍ devolvemos un error.
-      // Esto previene que un token "malo" se ignore.
       if (err) {
         return res.status(403).json({ message: "Token provided is invalid or has expired." });
       }
 
-      // Si el token es válido, adjuntamos los datos del usuario a la petición.
-      req.user = decoded;
+      req.user = decoded as UserPayload;
       next();
     });
-
   } catch (error) {
-    // En caso de un error inesperado en el middleware, lo registramos y continuamos.
     console.error("Error in optionalVerifyToken middleware:", error);
     next();
   }
