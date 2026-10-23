@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import User from '../models/Model.User.ts';
 import bcrypt from 'bcryptjs';
+import { UserService } from '../services/userService.ts';
 // @ts-ignore - Asegúrate de que jwt.ts exista o se maneje vía NodeNext
 import { MyToken } from '../lib/jwt.ts';
 import { successResponse, errorResponse } from '../utilities/respuestas.ts';
@@ -70,35 +71,10 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       return errorResponse(res, "Email and password are required", 400);
     }
 
-    // Es necesario usar .select('+password') porque en el modelo está marcado como oculto por defecto
-    const user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      return errorResponse(res, "Invalid email or password", 400);
-    }
-
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return errorResponse(res, "Invalid email or password", 400);
-    }
-
-    const token = await MyToken({
-      id: user._id,
-      email: user.email,
-      role: user.role
-    });
-
-    successResponse(res, {
-      message: "Login successful",
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
+    const result = await UserService.authenticate(email, password);
+    successResponse(res, { message: "Login successful", ...result });
   } catch (error: any) {
-    errorResponse(res, "Error logging in", 500, error.message);
+    errorResponse(res, error.message || "Error logging in", 400);
   }
 };
 
